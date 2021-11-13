@@ -166,11 +166,12 @@ class Binvox(object):
         dense_data = self.numpy()
 
         with open(filepath, 'wb') as fp:
-            fp.write('#binvox 1\n')
-            fp.write('dim '+' '.join(map(str, self.dims))+'\n')
-            fp.write('translate '+' '.join(map(str, self.translate))+'\n')
-            fp.write('scale '+str(self.scale)+'\n')
-            fp.write('data\n')
+            header = "#binvox 1\n" + \
+                     'dim '+' '.join(map(str, self.dims))+'\n' + \
+                     'translate '+' '.join(map(str, self.translate))+'\n' + \
+                     'scale '+str(self.scale)+'\n' + \
+                     'data\n'
+            fp.write(str.encode(header))
 
             if self.axis_order == 'xzy':
                 voxels_flat = dense_data.flatten()
@@ -186,20 +187,20 @@ class Binvox(object):
                 if c == state:
                     ctr += 1
                     # if ctr hits max, dump
-                    if ctr==255:
-                        fp.write(chr(state))
-                        fp.write(chr(ctr))
+                    if ctr == 255:
+                        fp.write(chr(state).encode())
+                        fp.write(ctr.to_bytes(1, 'big'))
                         ctr = 0
                 else:
                     # if switch state, dump
-                    fp.write(chr(state))
-                    fp.write(chr(ctr))
+                    fp.write(chr(state).encode())
+                    fp.write(ctr.to_bytes(1, 'big'))
                     state = c
                     ctr = 1
             # flush out remainders
             if ctr > 0:
-                fp.write(chr(state))
-                fp.write(chr(ctr))
+                fp.write(chr(state).encode())
+                fp.write(ctr.to_bytes(1, 'big'))
 
     def __copy__(self):
         data        = self.data.copy()
