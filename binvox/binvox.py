@@ -1,4 +1,8 @@
+from typing import Tuple
+
 import numpy as np
+
+from binvox.utils import compress_flat_voxels
 
 
 class Binvox(object):
@@ -11,16 +15,6 @@ class Binvox(object):
     dims are the voxel dimensions, e.g. [32, 32, 32] for a 32x32x32 model.
 
     scale and translate relate the voxels to the original model coordinates.
-
-    To translate voxel coordinates i, j, k to original coordinates x, y, z:
-
-    x_n = (i+.5)/dims[0]
-    y_n = (j+.5)/dims[1]
-    z_n = (k+.5)/dims[2]
-    x = scale*x_n + translate[0]
-    y = scale*y_n + translate[1]
-    z = scale*z_n + translate[2]
-
     """
     def __init__(self, data=None, dims=None, translate=None, scale=None, axis_order=None, mode=None):
         self.data           = data
@@ -40,8 +34,8 @@ class Binvox(object):
             raw_data = np.frombuffer(fp.read(), dtype=np.uint8)
 
         methods = {
-            'dense': Binvox._read_dense,
-            'sparse': Binvox._read_sparse,
+            'dense': Binvox._parse_dense,
+            'sparse': Binvox._parse_sparse,
         }
         method = methods[mode]
 
@@ -67,7 +61,7 @@ class Binvox(object):
         return dims, translate, scale
 
     @staticmethod
-    def _read_dense(raw_data, dims, fix_coords):
+    def _parse_dense(raw_data, dims, fix_coords):
         """ Read binary binvox format as array.
 
         Returns the model with accompanying metadata.
@@ -102,7 +96,7 @@ class Binvox(object):
         return data, axis_order
 
     @staticmethod
-    def _read_sparse(raw_data, dims, fix_coords):
+    def _parse_sparse(raw_data, dims, fix_coords):
         """ Read binary binvox format as coordinates.
 
         Returns binvox model with voxels in a "coordinate" representation, i.e.  an
@@ -181,26 +175,10 @@ class Binvox(object):
                 raise NotImplementedError('Unsupported voxel model axis order')
 
             # keep a sort of state machine for writing run length encoding
-            state = voxels_flat[0]
-            ctr = 0
-            for c in voxels_flat:
-                if c == state:
-                    ctr += 1
-                    # if ctr hits max, dump
-                    if ctr == 255:
-                        fp.write(chr(state).encode())
-                        fp.write(ctr.to_bytes(1, 'big'))
-                        ctr = 0
-                else:
-                    # if switch state, dump
-                    fp.write(chr(state).encode())
-                    fp.write(ctr.to_bytes(1, 'big'))
-                    state = c
-                    ctr = 1
-            # flush out remainders
-            if ctr > 0:
-                fp.write(chr(state).encode())
-                fp.write(ctr.to_bytes(1, 'big'))
+            voxels_compressed = compress_flat_voxels(voxels_flat)
+            BYTE_SIZE = 1
+            for entry in voxels_compressed:
+                fp.write(entry.to_bytes(BYTE_SIZE, 'big'))
 
     def __copy__(self):
         data        = self.data.copy()
@@ -240,3 +218,14 @@ class Binvox(object):
 
         self.data = out
         self.mode = 'dense'
+
+    def transform_coord(self, voxel_coord: Tuple[int, int, int]) -> Tuple[float, float, float]:
+        """
+            Transform voxel coordinates i, j, k to original coordinates x, y, z:
+        :param voxel_coord: Voxel coordinate
+        :return: Original coordinate
+        """
+        voxel_coord = np.array(voxel_coord, dtype=float)
+        coord = voxel_coord / self.dims
+        coord = self.scale * coord + self.translate
+        return coord
