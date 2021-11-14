@@ -1,8 +1,6 @@
 from typing import Tuple
-
 import numpy as np
-
-from binvox.utils import compress_flat_voxels
+from binvox import compress_flat_voxels
 
 
 class Binvox(object):
