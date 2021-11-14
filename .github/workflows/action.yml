@@ -1,0 +1,13 @@
+name: 'Run tests'
+description: 'Run tests to check the correctness'
+author: 'Farid'
+on: [push]
+
+steps:
+  - uses: actions/checkout@v2
+  - uses: actions/setup-python@v2
+    with:
+      python-version: '3.9'
+      architecture: 'x64'
+  - run: pip install -r requirements.txt
+#  - run: python my_script.py
