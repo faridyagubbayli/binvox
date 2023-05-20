@@ -1,5 +1,6 @@
 from distutils.core import setup
-from binvox import __version__
+
+__version__ = "0.1.6"
 
 # read the contents of your README file
 from pathlib import Path
